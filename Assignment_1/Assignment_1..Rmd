@@ -5,6 +5,10 @@ output:
   html_document: default
   pdf_document: default
 ---
+## Purpose
+The purpose of this assignment is to set up and use R and GitHub for data analysis.  
+For this task, I downloaded the Iris dataset from the UCI Machine Learning Repository, imported it into R, generated descriptive statistics, created a new variable, and produced visualizations.
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -49,4 +53,5 @@ legend("topleft", legend = levels(as.factor(iris$Species)),
 ## Data Source
 Data Source: UCI Machine Learning Repository – Iris Dataset  
 https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data
+
 
