@@ -1,0 +1,196 @@
+---
+title: "Assignment 2 – K-NN Classification"
+author: "Inn Kyung Seo"
+date: "2025-09-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)     
+library(fastDummies)
+library(class)
+```
+
+```{r}
+bank <- read.csv("C:/Users/beyou/Desktop/UniversalBank.csv")
+head(bank)
+```
+
+```{r}
+bank <- bank[, !(names(bank) %in% c("ID", "ZIP.Code"))]
+head(bank)
+```
+
+```{r}
+library(fastDummies)
+
+bank <- dummy_cols(bank, 
+                   select_columns = "Education", 
+                   remove_first_dummy = FALSE, 
+                   remove_selected_columns = TRUE)
+
+head(bank)
+```
+```{r}
+set.seed(1) 
+n <- nrow(bank)
+train_index <- sample(1:n, n * 0.6)
+
+train <- bank[train_index, ]
+valid <- bank[-train_index, ]
+
+nrow(train) 
+nrow(valid)  
+```
+```{r}
+library(class)
+```
+
+```{r}
+train_X <- train %>% select(-Personal.Loan)
+train_Y <- train$Personal.Loan
+
+valid_X <- valid %>% select(-Personal.Loan)
+valid_Y <- valid$Personal.Loan
+```
+
+```{r}
+new_customer <- data.frame(
+  Age = 40,
+  Experience = 10,
+  Income = 84,
+  Family = 2,
+  CCAvg = 2,
+  Mortgage = 0,
+  Securities.Account = 0,
+  CD.Account = 0,
+  Online = 1,
+  CreditCard = 1,
+  Education_1 = 0,
+  Education_2 = 1,
+  Education_3 = 0
+)
+```
+
+```{r}
+knn_pred1 <- knn(train = train_X, test = new_customer, cl = train_Y, k = 1, prob = TRUE)
+knn_pred1
+```
+**1. k = 1 Classification for the New Customer**
+
+Using k-NN with k = 1, the model predicted that the new customer belongs to:
+Class 0 (will not accept the loan)
+The predicted class probability was 1.0, indicating that the nearest neighbor is entirely from class 0.
+
+```{r}
+k_values <- seq(1, 15, by = 2)
+```
+
+```{r}
+valid_error <- rep(0, length(k_values))
+
+for (i in 1:length(k_values)) {
+  knn_pred <- knn(train = train_X, test = valid_X, cl = train_Y, k = k_values[i])
+  valid_error[i] <- mean(knn_pred != valid_Y)
+}
+```
+
+```{r}
+k_results <- data.frame(k = k_values, Validation_Error = valid_error)
+k_results
+```
+```{r}
+plot(k_values, valid_error, type = "b", pch = 19,
+     xlab = "k", ylab = "Validation Error Rate",
+     main = "Choosing the Best k")
+```
+**2. Choosing the Best k**
+
+The validation error was evaluated across multiple k values using the validation dataset.
+The smallest validation error (0.0995) occurred at k = 11, suggesting that this value achieves a good compromise between model complexity and generalization performance.
+
+The plot below illustrates the trend of validation error as k varies.
+The error declines as k increases from 1 to 11, reaching its minimum at k = 11, and then begins to rise again for larger k values.
+
+```{r}
+best_k <- 11
+knn_pred_best <- knn(train = train_X, test = valid_X, cl = train_Y, k = best_k)
+```
+```{r}
+table(Predicted = knn_pred_best, Actual = valid_Y)
+```
+**3. Confusion Matrix for the Validation Data**
+The confusion matrix below summarizes the classification results on the validation set using k = 11. The model correctly classified 1,754 customers who did not accept the loan and 47 customers who did. However, there were 158 false negatives (actual loan customers misclassified as non-loan) and 41 false positives.
+Overall, the model demonstrates strong performance in identifying customers who will not accept the loan, though it shows some limitations in correctly classifying customers who actually accepted the loan.
+
+```{r}
+knn_pred_best_customer <- knn(
+  train = train_X,
+  test = new_customer,
+  cl = train_Y,
+  k = best_k,
+  prob = TRUE
+)
+```
+
+```{r}
+knn_pred_best_customer
+attr(knn_pred_best_customer, "prob")
+```
+**4. Classification for the New Customer Using the Best k**
+With k = 11, the model classified the new customer as Class 0 (will not accept the loan).
+The predicted class probability was 1.0, meaning that all 11 nearest neighbors belonged to class 0.
+This result indicates a high level of confidence in the model’s prediction for this customer.
+
+```{r}
+set.seed(1)
+n <- nrow(bank)
+train_index <- sample(1:n, n * 0.5)
+temp_data <- bank[-train_index, ]
+
+valid_index <- sample(1:nrow(temp_data), nrow(temp_data) * 0.6)
+train <- bank[train_index, ]
+valid <- temp_data[valid_index, ]
+test <- temp_data[-valid_index, ]
+
+nrow(train); nrow(valid); nrow(test)
+```
+```{r}
+train_X <- train %>% select(-Personal.Loan)
+train_Y <- train$Personal.Loan
+
+valid_X <- valid %>% select(-Personal.Loan)
+valid_Y <- valid$Personal.Loan
+
+test_X <- test %>% select(-Personal.Loan)
+test_Y <- test$Personal.Loan
+```
+
+```{r}
+best_k <- 11
+```
+```{r}
+knn_pred_train <- knn(train = train_X, test = train_X, cl = train_Y, k = best_k)
+train_conf_mat <- table(Predicted = knn_pred_train, Actual = train_Y)
+train_conf_mat
+```
+```{r}
+knn_pred_valid <- knn(train = train_X, test = valid_X, cl = train_Y, k = best_k)
+valid_conf_mat <- table(Predicted = knn_pred_valid, Actual = valid_Y)
+valid_conf_mat
+```
+```{r}
+knn_pred_test <- knn(train = train_X, test = test_X, cl = train_Y, k = best_k)
+test_conf_mat <- table(Predicted = knn_pred_test, Actual = test_Y)
+test_conf_mat
+```
+**5. Model Evaluation and Conclusion**
+The k-NN model (k = 11) was evaluated on the training, validation, and test sets.
+Training Set (n = 2,500): Correctly classified 2,268 non-loan customers but misclassified all 232 loan customers.
+Validation Set (n = 1,500): Correctly identified 1,364 non-loan customers but misclassified all 136 loan customers.
+Test Set (n = 1,000): Correctly classified 888 non-loan customers but misclassified all 112 loan customers.
+Across all datasets, the model failed to predict any loan customers (Class 1), indicating a strong bias toward the majority class (non-loan). This likely results from class imbalance, where non-loan cases heavily outnumber loan cases.
+
+**Coclusion**
+In conclusion, the model performs well in identifying customers who will not accept the loan but struggles to correctly classify those who will. This analysis highlights both the strengths and limitations of the k-NN model in handling imbalanced data. Addressing class imbalance through techniques such as oversampling or undersampling, as well as exploring alternative classification models, could lead to better predictive performance for loan acceptance.
