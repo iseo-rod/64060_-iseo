@@ -1,0 +1,99 @@
+---
+title: "BA 64060 Assignment 3"
+author: "Inn Kyung Seo"
+date: "2025-10-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+# install.packages(c("dplyr", "tidyr", "e1071"))
+
+library(dplyr)
+library(tidyr)
+library(e1071)
+```
+```{r}
+setwd("C:/Users/beyou/Desktop")
+bank <- read.csv("UniversalBank.csv")
+str(bank)
+head(bank)
+```
+```{r}
+names(bank)
+```
+```{r}
+set.seed(1)
+n <- nrow(bank)
+train_index <- sample(1:n, 0.6*n)
+train <- bank[train_index, ]
+valid <- bank[-train_index, ]
+
+train <- train %>%
+  rename(
+    Loan = Personal.Loan,
+    CC = CreditCard
+  )
+
+```
+```{r}
+library(dplyr)
+library(tidyr)
+
+pivot_A <- train %>%
+  group_by(CC, Loan, Online) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Online, values_from = count, values_fill = 0)
+
+pivot_A
+
+```
+```{r}
+subset_data <- train %>% filter(CC == 1, Online == 1)
+prob_B <- mean(subset_data$Loan == 1)
+prob_B
+```
+```{r}
+# i
+p_cc1_loan1 <- mean(train$CC[train$Loan==1] == 1)
+
+# ii
+p_online1_loan1 <- mean(train$Online[train$Loan==1] == 1)
+
+# iii
+p_loan1 <- mean(train$Loan == 1)
+
+# iv
+p_cc1_loan0 <- mean(train$CC[train$Loan==0] == 1)
+
+# v
+p_online1_loan0 <- mean(train$Online[train$Loan==0] == 1)
+
+# vi
+p_loan0 <- mean(train$Loan == 0)
+
+c(p_cc1_loan1, p_online1_loan1, p_loan1, p_cc1_loan0, p_online1_loan0, p_loan0)
+```
+```{r}
+num <- p_cc1_loan1 * p_online1_loan1 * p_loan1
+den <- num + (p_cc1_loan0 * p_online1_loan0 * p_loan0)
+p_nb_manual <- num / den
+p_nb_manual
+```
+```{r}
+nb_model <- naiveBayes(as.factor(Loan) ~ as.factor(CC) + as.factor(Online), data=train)
+
+test_case <- data.frame(CC=1, Online=1)
+predict(nb_model, test_case, type="raw")
+```
+```{r}
+results <- data.frame(
+  Method = c("Pivot Table", "Naive Bayes Formula", "Naive Bayes Model"),
+  Probability = c(0.09108527, 0.09055758, 0.0916667)
+)
+results
+```
+
+**Conclusion:** Based on the three methods, pivot table, Naive Bayes formula, and Naive Bayes model, the probability that a customer with a bank credit card and online banking service will accept a personal loan is approximately 0.091 (9.1%). The results are almost identical across all methods, indicating that the Naive Bayes independence assumption performs well for this dataset and provides a reliable estimate of the conditional probability.
