@@ -1,0 +1,109 @@
+---
+title: "BA-64060_Assignment 4"
+author: "Inn Kyung Seo"
+date: "2025-10-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+pharma <- read.csv("C:/Users/beyou/Desktop/Pharmaceuticals.csv")
+head(pharma)
+```
+```{r}
+pharma_num <- pharma[, c("Market_Cap", "Beta", "PE_Ratio", "ROE", "ROA",
+                         "Asset_Turnover", "Leverage", "Rev_Growth", "Net_Profit_Margin")]
+pharma_num <- data.frame(lapply(pharma_num, as.numeric))
+```
+```{r}
+pharma_scaled <- scale(pharma_num)
+head(pharma_scaled)
+```
+
+```{r}
+library(factoextra)
+```
+```{r}
+fviz_nbclust(pharma_scaled, kmeans, method = "wss") +
+  labs(subtitle = "Elbow Method for Optimal k")
+
+fviz_nbclust(pharma_scaled, kmeans, method = "silhouette") +
+  labs(subtitle = "Silhouette Method for Optimal k")
+```
+
+```{r}
+set.seed(123)  
+km <- kmeans(pharma_scaled, centers = 3, nstart = 25)
+
+```
+```{r}
+km
+km$centers
+table(km$cluster)
+```
+```{r}
+fviz_cluster(km, data = pharma_scaled, geom = "point", ellipse.type = "norm") +
+  labs(title = "K-Means Clustering of Pharmaceutical Firms")
+```
+```{r}
+aggregate(pharma_num, by = list(Cluster = km$cluster), mean)
+```
+
+**Interpret**
+
+**(a) Determine the optimal number of clusters using Elbow and Silhouette methods**
+
+All numeric variables were standardized using `scale()` to remove differences in measurement units.The k-Means algorithm was chosen because it effectively groups continuous numeric data by similarity.Both the Elbow and Silhouette methods were used to determine the appropriate number of clusters.The results suggested that three clusters (k = 3) provide the most meaningful differentiation among firms. Multiple random starts were used to ensure stable and reproducible results.
+
+**(b) Cluster Analysis and Interpretation**
+
+Three clusters were identified, consisting of 4, 11, and 6 firms respectively.  
+Each group shows distinct financial characteristics.
+
+**Cluster 1 (n = 4)**  
+These firms have high price-to-earnings ratios but relatively low returns on equity and returns on assets.They also tend to have small to medium market capitalizations.  
+This suggests they are valued highly despite limited profitability, likely because investors expect strong future growth or innovation potential.
+
+**Cluster 2 (n = 11)**  
+Firms in this cluster have the largest market capitalizations and the highest profitability measures such as ROE, ROA, and net profit margin. They maintain strong operational efficiency and stable balance sheets.This cluster represents financially strong, stable, and efficient market leaders that dominate the pharmaceutical industry.
+
+**Cluster 3 (n = 6)**  
+These firms are smaller and less mature, with moderate ROE and lower asset turnover and margins.They are likely in early or transitional stages of growth, focusing on improving efficiency and profitability over time.This cluster represents developing and transitional firms within the industry.
+
+**(c) Patterns in Non-Numeric Variables (10–12)**
+
+The clustering was based only on financial variables (1–9).  
+To explore potential patterns with the remaining variables—Median Recommendation, Location, and Exchange—cross-tabulations were reviewed.  
+Cluster 2 (the high-performance group) tended to receive more favorable analyst recommendations, while Clusters 1 and 3 showed more neutral ratings.  
+There was no strong pattern based on geographic location or exchange, suggesting the clustering is mainly driven by financial metrics.
+
+**(d) Cluster Naming**
+
+By applying k-Means clustering (k = 3) to nine standardized financial variables,
+this analysis successfully grouped 21 pharmaceutical firms into three distinct categories.
+The results reveal important structural differences within the industry.
+
+**Cluster 1 – Emerging Innovation Firms:**
+These are smaller companies with high market valuations but modest current profitability,
+reflecting investor optimism toward innovation, research, and long-term growth potential.
+
+**Cluster 2 – Industry Leaders:**
+This cluster represents financially strong, stable, and operationally efficient firms that consistently achieve high profitability
+and maintain dominant positions in the global pharmaceutical market.
+
+**Cluster 3 – Growth Stage Firms:**
+These emerging firms are in the process of improving operational efficiency and strengthening financial stability
+as they transition toward greater maturity and sustainable growth.
+This clustering analysis provides valuable insights into the financial structure of the pharmaceutical industry.It helps analysts and investors better understand competitive positioning, identify performance patterns,and recognize which firms align with different strategic or investment objectives.
+
+**Conclusion**
+
+The k-Means clustering analysis, based on nine standardized financial variables, segmented 21 pharmaceutical firms into three meaningful groups.
+These clusters reveal structural diversity across the industry, highlighting differences in firm size, profitability, and strategic positioning.
+Emerging Innovation Firms: Smaller companies with limited current profitability but strong investor confidence, reflecting high expectations for innovation and future expansion.
+Industry Leaders: Large, financially robust firms that consistently demonstrate high efficiency, strong returns, and long-term market dominance.
+Growth Stage Firms: Emerging players steadily enhancing operational capabilities and financial performance as they progress toward maturity.
+In conclusion, this analysis provides a comprehensive view of the pharmaceutical industry’s financial landscape.It enables analysts and investors to identify peer groups, assess competitive advantages, and make informed strategic or investment decisions based on each firm’s growth trajectory and performance characteristics.
