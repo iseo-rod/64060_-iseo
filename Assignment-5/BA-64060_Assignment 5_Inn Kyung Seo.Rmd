@@ -1,0 +1,166 @@
+---
+title: "BA-64060_Assignment 5"
+author: "Inn Kyung Seo"
+date: "2025-11-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+cereals <- read.csv("C:/Users/beyou/Desktop/Cereals.csv", stringsAsFactors = FALSE)
+head(cereals)
+```
+```{r}
+cereals_clean <- na.omit(cereals)
+dim(cereals_clean)
+```
+
+```{r}
+library(dplyr)
+
+cereals_num <- cereals_clean %>% 
+  select(where(is.numeric))
+
+str(cereals_num)
+```
+```{r}
+cereals_scaled <- scale(cereals_num)
+
+head(cereals_scaled)
+```
+```{r}
+library(cluster)
+
+methods <- c("single", "complete", "average", "ward")
+
+agnes_list <- lapply(methods, function(m) {
+  agnes(cereals_scaled, method = m)
+})
+names(agnes_list) <- methods
+
+sapply(agnes_list, function(x) x$ac)
+```
+```{r}
+best_method <- "ward"  
+best_agnes <- agnes_list[[best_method]]
+
+hc_best <- as.hclust(best_agnes)
+
+plot(hc_best, labels = FALSE, main = paste("Dendrogram -", best_method))
+```
+```{r}
+library(cluster)
+
+sil_width <- c()
+
+for (k in 2:10) {
+  clusters_k <- cutree(hc_best, k = k)
+  sil <- silhouette(clusters_k, dist(cereals_scaled))
+  sil_width[k] <- mean(sil[, "sil_width"])
+}
+
+sil_width
+which.max(sil_width)
+```
+
+```{r}
+k_best <- 10
+clusters <- cutree(hc_best, k = k_best)
+table(clusters)
+```
+```{r}
+cereal_cluster_profile <- cereals_clean %>%
+  mutate(cluster = clusters) %>%
+  group_by(cluster) %>%
+  summarise(
+    n = n(),
+    mean_calories = mean(calories, na.rm = TRUE),
+    mean_sugar    = mean(sugars,   na.rm = TRUE),
+    mean_fiber    = mean(fiber,    na.rm = TRUE),
+    mean_protein  = mean(protein,  na.rm = TRUE),
+    mean_fat      = mean(fat,      na.rm = TRUE),
+    mean_sodium   = mean(sodium,   na.rm = TRUE),
+    mean_rating   = mean(rating,   na.rm = TRUE)
+  )
+
+cereal_cluster_profile
+```
+```{r}
+healthy_cluster_id <- 1   
+
+healthy_cereals <- cereals_clean %>%
+  mutate(cluster = clusters) %>%
+  filter(cluster == healthy_cluster_id) %>%
+  select(name, calories, sugars, fiber, protein, fat, sodium, rating)
+
+healthy_cereals
+```
+```{r}
+set.seed(123) 
+
+n <- nrow(cereals_scaled)
+idx_A <- sample(1:n, size = round(0.5 * n))
+idx_B <- setdiff(1:n, idx_A)
+
+A_scaled <- cereals_scaled[idx_A, ]
+B_scaled <- cereals_scaled[idx_B, ]
+```
+
+```{r}
+agnes_A <- agnes(A_scaled, method = best_method)
+hc_A <- as.hclust(agnes_A)
+
+clusters_A <- cutree(hc_A, k = k_best)
+```
+
+```{r}
+A_df <- as.data.frame(A_scaled)
+A_df$cluster <- clusters_A
+```
+```{r}
+colnames(A_df)
+```
+```{r}
+centroids <- A_df %>%
+  group_by(cluster) %>%
+  summarise(across(where(is.numeric), mean)) %>%
+  arrange(cluster)
+```
+```{r}
+centroids_mat <- as.matrix(centroids[,-1])
+```
+
+```{r}
+assign_cluster_B <- function(x, centers) {
+  dists <- apply(centers, 1, function(c) sum((x - c)^2))
+  which.min(dists)
+}
+
+pred_B <- apply(B_scaled, 1, assign_cluster_B, centers = centroids_mat)
+```
+```{r}
+true_B <- clusters[idx_B]
+
+table(pred_B, true_B)
+```
+```{r}
+library(mclust)
+adjustedRandIndex(pred_B, true_B)
+```
+**Conclusion**
+
+(1) Stability Evaluation 
+
+To evaluate how stable the clustering solution is, the dataset was randomly split into two subsets, A and B. Subset A was used to generate the hierarchical clustering model (Ward linkage, k = 10), and cluster centroids were computed based on A.
+Then, each record in subset B was assigned to the nearest centroid from A, and these predicted cluster labels were compared with the cluster assignments obtained from the full dataset.
+The resulting Adjusted Rand Index (ARI) was 0.53, indicating a moderate level of agreement between the two clusterings. Although the clusters are not perfectly consistent across the partitions, the ARI value suggests that the overall clustering structure is reasonably stable. This means that the clusters are reliably capturing underlying patterns in the nutritional data, despite natural variability and the high dimensionality of the cereal attributes. Therefore, the clustering solution can be considered sufficiently robust for interpretation and for practical decision-making, such as identifying healthier cereal groups.
+
+(2) Should the Data Be Normalized? 
+
+Yes, the data should be normalized before performing hierarchical clustering.
+This is because the Euclidean distance measure used in the clustering algorithm is highly sensitive to differences in scale. In this dataset, nutritional variables such as calories, sugar, sodium, and fiber are recorded in different units and have different numerical ranges.
+If the data were not normalized, variables with large ranges would disproportionately influence the distance calculations, overpowering variables with smaller ranges (such as fat or fiber). By standardizing all numeric variables to have mean 0 and standard deviation 1, each attribute contributes equally to the clustering process.
+Normalization ensures that the resulting clusters represent genuine patterns in cereal nutrition rather than artifacts caused by unequal scaling.Therefore, normalization is essential for obtaining meaningful, balanced, and interpretable clusters in this analysis.
